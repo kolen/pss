@@ -12,3 +12,10 @@ pub struct Category {
 pub struct CreateWord {
     pub word: String,
 }
+
+#[derive(Serialize)]
+pub struct Word {
+    pub id: u64,
+    pub category_id: u64,
+    pub word: String,
+}
