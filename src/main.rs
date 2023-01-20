@@ -6,6 +6,7 @@ use axum::{
 };
 use sqlx::sqlite::SqlitePoolOptions;
 
+mod api_data;
 mod controller;
 mod schema;
 
