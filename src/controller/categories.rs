@@ -3,8 +3,8 @@ use axum::extract::Path;
 use axum::response::Result;
 use axum::Json;
 
-pub async fn list_categories() -> Json<Vec<Category>> {
-    Json(vec![])
+pub async fn list_categories() -> Result<Json<Vec<Category>>> {
+    Ok(Json(vec![]))
 }
 
 pub async fn create_category() -> Result<Json<Category>> {
