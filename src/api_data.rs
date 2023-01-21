@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
 pub struct Category {
-    pub id: u64,
+    pub id: i64,
     pub name: Option<String>,
-    pub num_words: u64,
+    pub num_words: i64,
     pub sample_words: Vec<String>,
 }
 
@@ -15,7 +15,7 @@ pub struct CreateWord {
 
 #[derive(Serialize)]
 pub struct Word {
-    pub id: u64,
-    pub category_id: u64,
+    pub id: i64,
+    pub category_id: i64,
     pub word: String,
 }
