@@ -9,6 +9,8 @@ use sqlx::sqlite::SqlitePoolOptions;
 mod api_data;
 mod controller;
 mod schema;
+#[cfg(test)]
+mod test_utils;
 
 #[tokio::main]
 async fn main() {
