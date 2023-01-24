@@ -98,4 +98,14 @@ mod test {
             .iter()
             .all(|sample_word| sample_word.len() > 0));
     }
+
+    #[tokio::test]
+    async fn test_list_categories_empty() {
+        let pool = test_database_pool().await;
+        add_test_user(&pool, "user").await;
+        let Json(Categories { categories }) = super::list_categories(Extension(pool.clone()))
+            .await
+            .expect("successful response with list of categories");
+        assert!(categories.is_empty());
+    }
 }
