@@ -1,42 +1,56 @@
-use crate::api_data::{Categories, Category, CategoryCreateRequest};
+use crate::api_data::{Categories, Category, CategoryCreateRequest, CategoryUpdateRequest};
 use crate::controller::utils::InternalServerErrorResultExt;
 use axum::extract::Path;
+use axum::http::StatusCode;
 use axum::response::Result;
 use axum::{Extension, Json};
 use futures::stream::StreamExt;
 use sqlx::types::time::OffsetDateTime;
-use sqlx::{query, query_scalar, SqlitePool};
+use sqlx::{query, query_as, query_scalar, SqlitePool};
 
 pub const SAMPLE_WORDS_COUNT: i32 = 5;
 
+/// Basic information about category, including word count. Intermediate structure for outputting.
+struct CategoryBasic {
+    id: i64,
+    name: Option<String>,
+    num_words: i64,
+}
+
+async fn build_category(
+    exec: impl sqlx::SqliteExecutor<'_>,
+    category: CategoryBasic,
+) -> sqlx::Result<Category> {
+    let sample_words = query_scalar!(
+        "select word from words where category_id = ? limit ?",
+        category.id,
+        SAMPLE_WORDS_COUNT
+    )
+    .fetch_all(exec)
+    .await?;
+
+    Ok(Category {
+        id: category.id,
+        name: category.name,
+        num_words: category.num_words,
+        sample_words,
+    })
+}
+
 pub async fn list_categories(Extension(pool): Extension<SqlitePool>) -> Result<Json<Categories>> {
-    let mut categories_initial = query!(
-        r#"select categories.id, categories.name, cast(count(words.id) as integer) as num_words
-         from categories
-         left join words on categories.id = words.category_id group by categories.id"#
+    let mut categories_basic = query_as!(
+        CategoryBasic,
+        "select categories.id, categories.name, cast(count(words.id) as integer) as num_words
+        from categories
+        left join words on categories.id = words.category_id group by categories.id"
     )
     .fetch(&pool);
 
     let mut categories: Vec<Category> = Vec::with_capacity(SAMPLE_WORDS_COUNT as usize);
 
-    while let Some(category_r) = categories_initial.next().await {
+    while let Some(category_r) = categories_basic.next().await {
         let category = category_r.into_500()?;
-
-        let sample_words = query_scalar!(
-            "select word from words where category_id = ? limit ?",
-            category.id,
-            SAMPLE_WORDS_COUNT
-        )
-        .fetch_all(&pool)
-        .await
-        .into_500()?;
-
-        categories.push(Category {
-            id: category.id,
-            name: category.name,
-            num_words: category.num_words,
-            sample_words,
-        });
+        categories.push(build_category(&pool, category).await.into_500()?);
     }
 
     Ok(Json(Categories { categories }))
@@ -73,13 +87,40 @@ pub async fn create_category(
     }))
 }
 
-pub async fn edit_category(Path(category_id): Path<u64>) -> Result<Json<Category>> {
-    Ok(Json(Category {
-        id: 0,
-        name: None,
-        num_words: 0,
-        sample_words: vec![],
-    }))
+pub async fn update_category(
+    Extension(pool): Extension<SqlitePool>,
+    Path(category_id): Path<i64>,
+    Json(category_update): Json<CategoryUpdateRequest>,
+) -> Result<Json<Category>> {
+    // FIXME: add auth
+
+    let categories_updated = query!(
+        "update categories set name = ? where id = ?",
+        category_update.name,
+        category_id
+    )
+    .execute(&pool)
+    .await
+    .into_500()?
+    .rows_affected();
+
+    if categories_updated == 0 {
+        return Err((StatusCode::NOT_FOUND, "Category not found").into());
+    }
+
+    let category = query_as!(
+        CategoryBasic,
+        "select categories.id, categories.name, cast(count(words.id) as integer) as num_words
+        from categories
+        left join words on categories.id = words.category_id
+        where categories.id = ? group by categories.id",
+        category_id
+    )
+    .fetch_one(&pool)
+    .await
+    .into_500()?;
+
+    Ok(Json(build_category(&pool, category).await.into_500()?))
 }
 
 pub async fn delete_category(Path(category_id): Path<u64>) -> Result<()> {
@@ -88,8 +129,11 @@ pub async fn delete_category(Path(category_id): Path<u64>) -> Result<()> {
 
 #[cfg(test)]
 mod test {
-    use crate::{api_data::CategoryCreateRequest, test_utils::*};
-    use axum::{Extension, Json};
+    use crate::{
+        api_data::{CategoryCreateRequest, CategoryUpdateRequest},
+        test_utils::*,
+    };
+    use axum::{extract::Path, Extension, Json};
 
     use crate::api_data::Categories;
 
@@ -158,5 +202,26 @@ mod test {
             .expect("successful response");
         assert_eq!(category.name, None);
         assert!(category.id > 0);
+    }
+
+    #[tokio::test]
+    async fn test_update_category_basic() {
+        let pool = test_database_pool().await;
+        let user_id = add_test_user(&pool, "user").await;
+        let category_id = add_test_category(&pool, user_id).await;
+        add_test_word(&pool, category_id).await;
+
+        let Json(category) = super::update_category(
+            Extension(pool.clone()),
+            Path(category_id),
+            Json(CategoryUpdateRequest {
+                name: Some("foo".to_owned()),
+            }),
+        )
+        .await
+        .expect("successful response");
+        assert_eq!(category.name, Some("foo".to_owned()));
+        assert_eq!(category.num_words, 1);
+        assert_eq!(category.sample_words.len(), 1);
     }
 }

@@ -13,6 +13,11 @@ pub struct CategoryCreateRequest {
     pub name: Option<String>,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct CategoryUpdateRequest {
+    pub name: Option<String>,
+}
+
 #[derive(Serialize)]
 pub struct Categories {
     pub categories: Vec<Category>,

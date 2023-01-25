@@ -27,7 +27,7 @@ async fn main() {
         .route("/words", post(controller::categories::create_category))
         .route(
             "/words/:category_id",
-            patch(controller::categories::edit_category),
+            patch(controller::categories::update_category),
         )
         .route(
             "/words/:category_id",
