@@ -8,6 +8,11 @@ pub struct Category {
     pub sample_words: Vec<String>,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct CategoryCreateRequest {
+    pub name: Option<String>,
+}
+
 #[derive(Serialize)]
 pub struct Categories {
     pub categories: Vec<Category>,

@@ -1,0 +1,12 @@
+{
+	"Controller test": {
+		"scope": "rust",
+		"prefix": "#[tokio::test]",
+		"body": [
+			"#[tokio::test]",
+			"async fn test_${1:name}() {",
+			"   let pool = test_database_pool().await;",
+			"}"
+		]
+	}
+}

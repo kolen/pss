@@ -1,9 +1,10 @@
-use crate::api_data::{Categories, Category};
+use crate::api_data::{Categories, Category, CategoryCreateRequest};
 use crate::controller::utils::InternalServerErrorResultExt;
 use axum::extract::Path;
 use axum::response::Result;
 use axum::{Extension, Json};
 use futures::stream::StreamExt;
+use sqlx::types::time::OffsetDateTime;
 use sqlx::{query, query_scalar, SqlitePool};
 
 pub const SAMPLE_WORDS_COUNT: i32 = 5;
@@ -41,10 +42,32 @@ pub async fn list_categories(Extension(pool): Extension<SqlitePool>) -> Result<J
     Ok(Json(Categories { categories }))
 }
 
-pub async fn create_category() -> Result<Json<Category>> {
+pub async fn create_category(
+    Extension(pool): Extension<SqlitePool>,
+    Json(category_create): Json<CategoryCreateRequest>,
+) -> Result<Json<Category>> {
+    // FIXME: use user from auth
+    let user_id = query_scalar!("select id from users limit 1")
+        .fetch_one(&pool)
+        .await
+        .expect("Temporary requires only single user in database TODO");
+    let current_time = OffsetDateTime::now_utc();
+    let new_category_id = query!(
+        "insert into categories(user_id, name, created_at, updated_at) 
+        values(?, ?, ?, ?)",
+        user_id,
+        category_create.name,
+        current_time,
+        current_time
+    )
+    .execute(&pool)
+    .await
+    .into_500()?
+    .last_insert_rowid();
+
     Ok(Json(Category {
-        id: 0,
-        name: None,
+        id: new_category_id,
+        name: category_create.name,
         num_words: 0,
         sample_words: vec![],
     }))
@@ -65,7 +88,7 @@ pub async fn delete_category(Path(category_id): Path<u64>) -> Result<()> {
 
 #[cfg(test)]
 mod test {
-    use crate::test_utils::*;
+    use crate::{api_data::CategoryCreateRequest, test_utils::*};
     use axum::{Extension, Json};
 
     use crate::api_data::Categories;
@@ -107,5 +130,20 @@ mod test {
             .await
             .expect("successful response with list of categories");
         assert!(categories.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_create_category_basic() {
+        let pool = test_database_pool().await;
+        add_test_user(&pool, "user").await;
+
+        let create_category = CategoryCreateRequest {
+            name: Some("test".to_owned()),
+        };
+        let Json(category) = super::create_category(Extension(pool.clone()), Json(create_category))
+            .await
+            .expect("successful response");
+        assert_eq!(category.name, Some("test".to_owned()));
+        assert!(category.id > 0);
     }
 }
