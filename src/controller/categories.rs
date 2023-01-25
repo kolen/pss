@@ -146,4 +146,17 @@ mod test {
         assert_eq!(category.name, Some("test".to_owned()));
         assert!(category.id > 0);
     }
+
+    #[tokio::test]
+    async fn test_create_category_no_name() {
+        let pool = test_database_pool().await;
+        add_test_user(&pool, "user").await;
+
+        let create_category = CategoryCreateRequest { name: None };
+        let Json(category) = super::create_category(Extension(pool.clone()), Json(create_category))
+            .await
+            .expect("successful response");
+        assert_eq!(category.name, None);
+        assert!(category.id > 0);
+    }
 }
