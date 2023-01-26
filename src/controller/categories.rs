@@ -67,7 +67,7 @@ pub async fn create_category(
         .expect("Temporary requires only single user in database TODO");
     let current_time = OffsetDateTime::now_utc();
     let new_category_id = query!(
-        "insert into categories(user_id, name, created_at, updated_at) 
+        "insert into categories(user_id, name, created_at, updated_at)
         values(?, ?, ?, ?)",
         user_id,
         category_create.name,
@@ -123,8 +123,35 @@ pub async fn update_category(
     Ok(Json(build_category(&pool, category).await.into_500()?))
 }
 
-pub async fn delete_category(Path(category_id): Path<u64>) -> Result<()> {
-    Ok(())
+pub async fn delete_category(
+    Extension(pool): Extension<SqlitePool>,
+    Path(category_id): Path<i64>,
+) -> Result<()> {
+    // FIXME: add auth
+    // FIXME: refine logic of categories that can't be deleted
+
+    let num_deleted = query!(
+        "with deletable_categories as (
+          select categories.id from categories
+          left join words on words.category_id = categories.id
+          group by categories.id having count(words.id) = 0
+        )
+        delete from categories where id = ?
+          and exists (
+            select * from deletable_categories where deletable_categories.id = id
+          )",
+        category_id
+    )
+    .execute(&pool)
+    .await
+    .into_500()?
+    .rows_affected();
+
+    if num_deleted == 1 {
+        Ok(())
+    } else {
+        Err((StatusCode::NOT_FOUND, "Category not found").into())
+    }
 }
 
 #[cfg(test)]
@@ -134,6 +161,7 @@ mod test {
         test_utils::*,
     };
     use axum::{extract::Path, Extension, Json};
+    use sqlx::query_scalar;
 
     use crate::api_data::Categories;
 
@@ -223,5 +251,31 @@ mod test {
         assert_eq!(category.name, Some("foo".to_owned()));
         assert_eq!(category.num_words, 1);
         assert_eq!(category.sample_words.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_delete_category_basic() {
+        let pool = test_database_pool().await;
+        let user_id = add_test_user(&pool, "user").await;
+        let category_id = add_test_category(&pool, user_id).await;
+
+        super::delete_category(Extension(pool.clone()), Path(category_id))
+            .await
+            .expect("successful response");
+
+        let has_category =
+            query_scalar!("select count(*) from categories where id = ?", category_id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(has_category, 0);
+    }
+
+    #[tokio::test]
+    async fn test_delete_category_not_found() {
+        let pool = test_database_pool().await;
+        super::delete_category(Extension(pool.clone()), Path(1))
+            .await
+            .unwrap_err();
     }
 }
