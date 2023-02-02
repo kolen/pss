@@ -1,9 +1,11 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc};
 
 use axum::{
     routing::{delete, get, patch, post},
-    Router,
+    Extension, Router,
 };
+use handlebars::Handlebars;
+use rust_embed::RustEmbed;
 use sqlx::sqlite::SqlitePoolOptions;
 
 mod api_data;
@@ -11,6 +13,10 @@ mod controller;
 mod schema;
 #[cfg(test)]
 mod test_utils;
+
+#[derive(RustEmbed)]
+#[folder = "templates"]
+struct Assets;
 
 #[tokio::main]
 async fn main() {
@@ -40,8 +46,20 @@ async fn main() {
             delete(controller::words::delete_word),
         );
 
-    let app = Router::new().nest("/api/v1", api_routes).with_state(pool);
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let auth_routes = Router::new()
+        .route("/login", get(controller::auth::login_page))
+        .route("/login", post(controller::auth::login_submit));
+
+    let mut handlebars = Handlebars::new();
+    handlebars
+        .register_embed_templates::<Assets>()
+        .expect("register embedded templates");
+    let app = Router::new()
+        .nest("/api/v1", api_routes)
+        .nest("/auth", auth_routes)
+        .with_state(pool)
+        .layer(Extension(Arc::new(handlebars)));
+    let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
     tracing::debug!("listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
