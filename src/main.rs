@@ -18,6 +18,14 @@ mod test_utils;
 #[folder = "templates"]
 struct Assets;
 
+pub fn make_handlebars() -> Handlebars<'static> {
+    let mut handlebars = Handlebars::new();
+    handlebars
+        .register_embed_templates::<Assets>()
+        .expect("register embedded templates");
+    handlebars
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
@@ -50,15 +58,11 @@ async fn main() {
         .route("/login", get(controller::auth::login_page))
         .route("/login", post(controller::auth::login_submit));
 
-    let mut handlebars = Handlebars::new();
-    handlebars
-        .register_embed_templates::<Assets>()
-        .expect("register embedded templates");
     let app = Router::new()
         .nest("/api/v1", api_routes)
         .nest("/auth", auth_routes)
         .with_state(pool)
-        .layer(Extension(Arc::new(handlebars)));
+        .layer(Extension(Arc::new(make_handlebars())));
     let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
     tracing::debug!("listening on {}", addr);
     axum::Server::bind(&addr)
