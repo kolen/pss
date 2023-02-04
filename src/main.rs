@@ -13,6 +13,7 @@ mod controller;
 mod schema;
 #[cfg(test)]
 mod test_utils;
+mod users;
 
 #[derive(RustEmbed)]
 #[folder = "templates"]

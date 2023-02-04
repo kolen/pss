@@ -1,6 +1,7 @@
 create table users (
        id integer primary key autoincrement,
        name text not null,
+       password text,
        created_at integer not null,
        updated_at integer not null
 );
