@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = "0.6.1"
+axum = { version = "0.6.1", features = ["headers"] }
 tokio = { version = "1.23.1", features = ["full"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
@@ -17,5 +17,6 @@ handlebars = { version = "4.3.6", features = [ "rust-embed" ] }
 rust-embed = "6.4.2"
 password-hash = { version = "0.4.2", features = ["std"] }
 argon2 = "0.4"
-rand_core = { version = "0.6", features = ["std"] }
+rand = { version = "0.8.5", features = ["std"] }
 serde_json = "1.0.91"
+base64 = "0.21.0"
