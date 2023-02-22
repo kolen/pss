@@ -1,13 +1,26 @@
+use std::fmt::Display;
+
 use argon2::{Argon2, PasswordHash};
 use base64::Engine;
+use password_hash::{Salt, SaltString};
 use rand::{thread_rng, RngCore};
 use sqlx::{query, query_scalar, types::time::OffsetDateTime, SqlitePool};
 use tokio::task::spawn_blocking;
 use tracing::warn;
 
-enum PasswordOrSqlError {
+#[derive(Debug)]
+pub enum PasswordOrSqlError {
     PasswordError(password_hash::errors::Error),
     SqlError(sqlx::Error),
+}
+
+impl Display for PasswordOrSqlError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PasswordOrSqlError::PasswordError(e) => e.fmt(f),
+            PasswordOrSqlError::SqlError(e) => e.fmt(f),
+        }
+    }
 }
 
 fn check_password_hash(password_hash: &str, password: &str) -> bool {
@@ -84,22 +97,28 @@ pub async fn get_session_user(pool: &SqlitePool, secret: &str) -> sqlx::Result<O
         .await
 }
 
+fn password_hash(password: String) -> password_hash::errors::Result<String> {
+    let argon2 = Argon2::default();
+
+    let salt_s = SaltString::generate(&mut thread_rng());
+    let hash = PasswordHash::generate(argon2, password, salt_s.as_salt().as_str())?.serialize();
+    Ok(hash.as_str().to_owned())
+}
+
 pub async fn add_user(
     pool: &SqlitePool,
     username: &str,
-    password: &str,
+    password: String,
 ) -> Result<i64, PasswordOrSqlError> {
-    let argon2 = Argon2::default();
-    let salt = "example"; // TODO: generate randomly, use Salt::RECOMMENDED_LENGTH
-    let hash = PasswordHash::generate(argon2, password, salt)
-        .map_err(|e| PasswordOrSqlError::PasswordError(e))?
-        .serialize();
-    let hash_s = hash.as_str();
     let time = OffsetDateTime::now_utc();
+    let hash = spawn_blocking(|| password_hash(password))
+        .await
+        .expect("Spawn blocking")
+        .map_err(|e| PasswordOrSqlError::PasswordError(e))?;
     let user_id = query!(
         "insert into users (name, password, created_at, updated_at) values (?, ?, ?, ?)",
         username,
-        hash_s,
+        hash,
         time,
         time
     )

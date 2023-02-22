@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, process::ExitCode, sync::Arc};
 
 use axum::{
     routing::{delete, get, patch, post},
@@ -7,7 +7,7 @@ use axum::{
 use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
 use rust_embed::RustEmbed;
-use sqlx::sqlite::SqlitePoolOptions;
+use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 
 mod api_data;
 mod controller;
@@ -84,13 +84,15 @@ enum UserCommands {
     SetPassword { username: String, password: String },
 }
 
-async fn start_server(port: u16) {
-    let pool = SqlitePoolOptions::new()
+async fn create_pool(database: &str) -> SqlitePool {
+    SqlitePoolOptions::new()
         .max_connections(5)
         .connect(&"development.sqlite".to_string()) // TODO: make configurable
         .await
-        .expect("couldn't connect to database");
+        .expect("couldn't connect to database")
+}
 
+async fn start_server(port: u16, pool: SqlitePool) {
     let app = routes()
         .layer(Extension(pool))
         .layer(Extension(Arc::new(make_handlebars())));
@@ -104,13 +106,34 @@ async fn start_server(port: u16) {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> ExitCode {
     tracing_subscriber::fmt::init();
 
     let cli = Cli::parse();
 
-    match &cli.command {
-        Commands::Start { port } => start_server(*port).await,
-        _ => return,
+    match cli.command {
+        Commands::Start { port } => {
+            start_server(port, create_pool(&cli.database).await).await;
+            ExitCode::SUCCESS
+        }
+        Commands::User { command } => match command {
+            UserCommands::Add { username, password } => {
+                let pool = create_pool(&cli.database).await;
+                match users::add_user(&pool, &username, password).await {
+                    Err(e) => {
+                        eprintln!("Error creating user: {}", e);
+                        ExitCode::FAILURE
+                    }
+                    Ok(user_id) => {
+                        println!("{}", user_id);
+                        ExitCode::SUCCESS
+                    }
+                }
+            }
+            UserCommands::SetPassword { username, password } => {
+                unimplemented!();
+            }
+        },
+        _ => ExitCode::SUCCESS,
     }
 }
