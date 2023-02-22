@@ -5,6 +5,11 @@ use sqlx::{query, query_scalar, types::time::OffsetDateTime, SqlitePool};
 use tokio::task::spawn_blocking;
 use tracing::warn;
 
+enum PasswordOrSqlError {
+    PasswordError(password_hash::errors::Error),
+    SqlError(sqlx::Error),
+}
+
 fn check_password_hash(password_hash: &str, password: &str) -> bool {
     let argon2 = Argon2::default();
     match PasswordHash::new(password_hash) {
@@ -77,4 +82,30 @@ pub async fn get_session_user(pool: &SqlitePool, secret: &str) -> sqlx::Result<O
     query_scalar!("select user_id from sessions where secret = ?", secret)
         .fetch_optional(pool)
         .await
+}
+
+pub async fn add_user(
+    pool: &SqlitePool,
+    username: &str,
+    password: &str,
+) -> Result<i64, PasswordOrSqlError> {
+    let argon2 = Argon2::default();
+    let salt = "example"; // TODO: generate randomly, use Salt::RECOMMENDED_LENGTH
+    let hash = PasswordHash::generate(argon2, password, salt)
+        .map_err(|e| PasswordOrSqlError::PasswordError(e))?
+        .serialize();
+    let hash_s = hash.as_str();
+    let time = OffsetDateTime::now_utc();
+    let user_id = query!(
+        "insert into users (name, password, created_at, updated_at) values (?, ?, ?, ?)",
+        username,
+        hash_s,
+        time,
+        time
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| PasswordOrSqlError::SqlError(e))?
+    .last_insert_rowid();
+    Ok(user_id)
 }
