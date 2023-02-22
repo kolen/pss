@@ -87,7 +87,7 @@ enum UserCommands {
 async fn create_pool(database: &str) -> SqlitePool {
     SqlitePoolOptions::new()
         .max_connections(5)
-        .connect(&"development.sqlite".to_string()) // TODO: make configurable
+        .connect(&database)
         .await
         .expect("couldn't connect to database")
 }
