@@ -1,7 +1,7 @@
 use argon2::{Argon2, PasswordHash};
 use base64::Engine;
 use rand::{thread_rng, RngCore};
-use sqlx::{query, types::time::OffsetDateTime, SqlitePool};
+use sqlx::{query, query_scalar, types::time::OffsetDateTime, SqlitePool};
 use tokio::task::spawn_blocking;
 use tracing::warn;
 
@@ -71,4 +71,10 @@ pub async fn create_session(
     query!("insert into sessions (user_id, secret, created_user_agent, created_at, last_used_at) values (?, ?, ?, ?, ?)",
            user_id, secret, user_agent, time, time).execute(pool).await?;
     Ok(secret)
+}
+
+pub async fn get_session_user(pool: &SqlitePool, secret: &str) -> sqlx::Result<Option<i64>> {
+    query_scalar!("select user_id from sessions where secret = ?", secret)
+        .fetch_optional(pool)
+        .await
 }
