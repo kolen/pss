@@ -53,7 +53,7 @@ pub async fn login_submit(
             handlebars
                 .render(
                     "login.hbs",
-                    &json!({"username": form_data.username, "password": ""}),
+                    &json!({"username": form_data.username}),
                 )
                 .into_500()?,
         )
