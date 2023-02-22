@@ -62,7 +62,7 @@ async fn main() {
     let app = Router::new()
         .nest("/api/v1", api_routes)
         .nest("/auth", auth_routes)
-        .with_state(pool)
+        .layer(Extension(pool))
         .layer(Extension(Arc::new(make_handlebars())));
     let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
     tracing::debug!("listening on {}", addr);
