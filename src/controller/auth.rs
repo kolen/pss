@@ -51,10 +51,7 @@ pub async fn login_submit(
         }
         None => Ok(Html(
             handlebars
-                .render(
-                    "login.hbs",
-                    &json!({"username": form_data.username}),
-                )
+                .render("login.hbs", &json!({"username": form_data.username}))
                 .into_500()?,
         )
         .into_response()),
