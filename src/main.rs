@@ -4,6 +4,7 @@ use axum::{
     routing::{delete, get, patch, post},
     Extension, Router,
 };
+use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
 use rust_embed::RustEmbed;
 use sqlx::sqlite::SqlitePoolOptions;
@@ -55,10 +56,35 @@ fn routes() -> Router {
         .nest("/auth", auth_routes)
 }
 
-#[tokio::main]
-async fn main() {
-    tracing_subscriber::fmt::init();
+#[derive(Parser)]
+#[command(version, about)]
+struct Cli {
+    #[arg(long, default_value = "development.sqlite")]
+    database: String,
 
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    Start {
+        #[arg(long, default_value = "8080")]
+        port: u16,
+    },
+    User {
+        #[command(subcommand)]
+        command: UserCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum UserCommands {
+    Add { username: String, password: String },
+    SetPassword { username: String, password: String },
+}
+
+async fn start_server(port: u16) {
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
         .connect(&"development.sqlite".to_string()) // TODO: make configurable
@@ -69,10 +95,22 @@ async fn main() {
         .layer(Extension(pool))
         .layer(Extension(Arc::new(make_handlebars())));
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
-    tracing::debug!("listening on {}", addr);
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    tracing::info!("listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await
         .unwrap();
+}
+
+#[tokio::main]
+async fn main() {
+    tracing_subscriber::fmt::init();
+
+    let cli = Cli::parse();
+
+    match &cli.command {
+        Commands::Start { port } => start_server(*port).await,
+        _ => return,
+    }
 }
