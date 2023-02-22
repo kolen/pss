@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use argon2::{Argon2, PasswordHash};
 use base64::Engine;
-use password_hash::{Salt, SaltString};
+use password_hash::SaltString;
 use rand::{thread_rng, RngCore};
 use sqlx::{query, query_scalar, types::time::OffsetDateTime, SqlitePool};
 use tokio::task::spawn_blocking;
