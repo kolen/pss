@@ -27,16 +27,7 @@ pub fn make_handlebars() -> Handlebars<'static> {
     handlebars
 }
 
-#[tokio::main]
-async fn main() {
-    tracing_subscriber::fmt::init();
-
-    let pool = SqlitePoolOptions::new()
-        .max_connections(5)
-        .connect(&"development.sqlite".to_string()) // TODO: make configurable
-        .await
-        .expect("couldn't connect to database");
-
+fn routes() -> Router {
     let api_routes = Router::new()
         .route("/words", get(controller::categories::list_categories))
         .route("/words", post(controller::categories::create_category))
@@ -59,11 +50,25 @@ async fn main() {
         .route("/login", get(controller::auth::login_page))
         .route("/login", post(controller::auth::login_submit));
 
-    let app = Router::new()
+    Router::new()
         .nest("/api/v1", api_routes)
         .nest("/auth", auth_routes)
+}
+
+#[tokio::main]
+async fn main() {
+    tracing_subscriber::fmt::init();
+
+    let pool = SqlitePoolOptions::new()
+        .max_connections(5)
+        .connect(&"development.sqlite".to_string()) // TODO: make configurable
+        .await
+        .expect("couldn't connect to database");
+
+    let app = routes()
         .layer(Extension(pool))
         .layer(Extension(Arc::new(make_handlebars())));
+
     let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
     tracing::debug!("listening on {}", addr);
     axum::Server::bind(&addr)
