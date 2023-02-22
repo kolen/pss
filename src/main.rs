@@ -33,7 +33,7 @@ async fn main() {
 
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
-        .connect(&":memory:".to_string())
+        .connect(&"development.sqlite".to_string()) // TODO: make configurable
         .await
         .expect("couldn't connect to database");
 
