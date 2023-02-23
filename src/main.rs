@@ -151,6 +151,5 @@ async fn main() -> ExitCode {
                 }
             }
         },
-        _ => ExitCode::SUCCESS,
     }
 }
