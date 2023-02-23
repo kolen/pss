@@ -131,7 +131,24 @@ async fn main() -> ExitCode {
                 }
             }
             UserCommands::SetPassword { username, password } => {
-                unimplemented!();
+                let pool = create_pool(&cli.database).await;
+                match users::user_by_name(&pool, &username).await {
+                    Ok(Some(id)) => match users::set_password(&pool, id, password).await {
+                        Ok(()) => ExitCode::SUCCESS,
+                        Err(e) => {
+                            eprintln!("Error updating password: {}", e);
+                            ExitCode::FAILURE
+                        }
+                    },
+                    Ok(None) => {
+                        eprintln!("User not found");
+                        ExitCode::FAILURE
+                    }
+                    Err(e) => {
+                        eprintln!("Error getting user when updating password: {}", e);
+                        ExitCode::FAILURE
+                    }
+                }
             }
         },
         _ => ExitCode::SUCCESS,

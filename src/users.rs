@@ -5,22 +5,18 @@ use base64::Engine;
 use password_hash::SaltString;
 use rand::{thread_rng, RngCore};
 use sqlx::{query, query_scalar, types::time::OffsetDateTime, SqlitePool};
+use thiserror::Error;
 use tokio::task::spawn_blocking;
 use tracing::warn;
 
-#[derive(Debug)]
-pub enum PasswordOrSqlError {
-    PasswordError(password_hash::errors::Error),
-    SqlError(sqlx::Error),
-}
-
-impl Display for PasswordOrSqlError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PasswordOrSqlError::PasswordError(e) => e.fmt(f),
-            PasswordOrSqlError::SqlError(e) => e.fmt(f),
-        }
-    }
+#[derive(Error, Debug)]
+pub enum UsersError {
+    #[error("password hashing error")]
+    PasswordError(#[from] password_hash::errors::Error),
+    #[error("SQL error")]
+    SqlError(#[from] sqlx::Error),
+    #[error("user with id={0} not found")]
+    NoSuchUser(i64),
 }
 
 fn check_password_hash(password_hash: &str, password: &str) -> bool {
@@ -109,12 +105,11 @@ pub async fn add_user(
     pool: &SqlitePool,
     username: &str,
     password: String,
-) -> Result<i64, PasswordOrSqlError> {
+) -> Result<i64, UsersError> {
     let time = OffsetDateTime::now_utc();
     let hash = spawn_blocking(|| password_hash(password))
         .await
-        .expect("Spawn blocking")
-        .map_err(|e| PasswordOrSqlError::PasswordError(e))?;
+        .expect("Spawn blocking")?;
     let user_id = query!(
         "insert into users (name, password, created_at, updated_at) values (?, ?, ?, ?)",
         username,
@@ -123,8 +118,32 @@ pub async fn add_user(
         time
     )
     .execute(pool)
-    .await
-    .map_err(|e| PasswordOrSqlError::SqlError(e))?
+    .await?
     .last_insert_rowid();
     Ok(user_id)
+}
+
+pub async fn set_password(pool: &SqlitePool, id: i64, password: String) -> Result<(), UsersError> {
+    let hash = spawn_blocking(|| password_hash(password))
+        .await
+        .expect("Spawn blocking")?;
+    let rows_affected = query!("update users set password = ? where id = ?", hash, id)
+        .execute(pool)
+        .await?
+        .rows_affected();
+    if rows_affected == 1 {
+        Ok(())
+    } else if rows_affected == 0 {
+        Err(UsersError::NoSuchUser(id))
+    } else {
+        panic!()
+    }
+}
+
+pub async fn user_by_name(pool: &SqlitePool, username: &str) -> Result<Option<i64>, UsersError> {
+    Ok(
+        query_scalar!("select id from users where name = ?", username)
+            .fetch_optional(pool)
+            .await?,
+    )
 }
