@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use axum::{
     headers::UserAgent,
-    http::header,
     response::{Html, IntoResponse, Redirect, Response, Result},
     Extension, Form, TypedHeader,
 };
@@ -41,10 +40,7 @@ pub async fn login_submit(
                 .await
                 .into_500()?;
             Ok((
-                [(
-                    header::SET_COOKIE,
-                    format!("session={}; httponly", &session_secret),
-                )],
+                crate::auth::session_cookie(session_secret),
                 Redirect::temporary("/"),
             )
                 .into_response())

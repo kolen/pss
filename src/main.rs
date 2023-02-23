@@ -10,6 +10,7 @@ use rust_embed::RustEmbed;
 use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 
 mod api_data;
+mod auth;
 mod controller;
 mod schema;
 #[cfg(test)]
