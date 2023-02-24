@@ -49,7 +49,7 @@ pub async fn list_categories(
         left join words on categories.id = words.category_id
         where categories.user_id = ?
         group by categories.id"#,
-        user_id
+        user_id,
     )
     .fetch(&pool);
 
