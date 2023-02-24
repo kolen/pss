@@ -13,7 +13,7 @@ use crate::users::get_session_user;
 
 const COOKIE_NAME: &str = "pss_session";
 
-pub struct SessionUser(i64);
+pub struct SessionUser(pub i64);
 
 #[async_trait]
 impl<S> FromRequestParts<S> for SessionUser

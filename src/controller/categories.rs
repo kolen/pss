@@ -1,4 +1,5 @@
 use crate::api_data::{Categories, Category, CategoryCreateRequest, CategoryUpdateRequest};
+use crate::auth::SessionUser;
 use crate::controller::utils::InternalServerErrorResultExt;
 use axum::extract::Path;
 use axum::http::StatusCode;
@@ -37,12 +38,18 @@ async fn build_category(
     })
 }
 
-pub async fn list_categories(Extension(pool): Extension<SqlitePool>) -> Result<Json<Categories>> {
+pub async fn list_categories(
+    Extension(pool): Extension<SqlitePool>,
+    SessionUser(user_id): SessionUser,
+) -> Result<Json<Categories>> {
     let mut categories_basic = query_as!(
         CategoryBasic,
-        "select categories.id, categories.name, cast(count(words.id) as integer) as num_words
+        r#"select categories.id as "id!", categories.name, cast(count(words.id) as integer) as num_words
         from categories
-        left join words on categories.id = words.category_id group by categories.id"
+        left join words on categories.id = words.category_id
+        where categories.user_id = ?
+        group by categories.id"#,
+        user_id
     )
     .fetch(&pool);
 
@@ -58,13 +65,9 @@ pub async fn list_categories(Extension(pool): Extension<SqlitePool>) -> Result<J
 
 pub async fn create_category(
     Extension(pool): Extension<SqlitePool>,
+    SessionUser(user_id): SessionUser,
     Json(category_create): Json<CategoryCreateRequest>,
 ) -> Result<Json<Category>> {
-    // FIXME: use user from auth
-    let user_id = query_scalar!("select id from users limit 1")
-        .fetch_one(&pool)
-        .await
-        .expect("Temporary requires only single user in database TODO");
     let current_time = OffsetDateTime::now_utc();
     let new_category_id = query!(
         "insert into categories(user_id, name, created_at, updated_at)
@@ -90,14 +93,14 @@ pub async fn create_category(
 pub async fn update_category(
     Extension(pool): Extension<SqlitePool>,
     Path(category_id): Path<i64>,
+    SessionUser(user_id): SessionUser,
     Json(category_update): Json<CategoryUpdateRequest>,
 ) -> Result<Json<Category>> {
-    // FIXME: add auth
-
     let categories_updated = query!(
-        "update categories set name = ? where id = ?",
+        "update categories set name = ? where id = ? and user_id = ?",
         category_update.name,
-        category_id
+        category_id,
+        user_id,
     )
     .execute(&pool)
     .await
@@ -126,8 +129,8 @@ pub async fn update_category(
 pub async fn delete_category(
     Extension(pool): Extension<SqlitePool>,
     Path(category_id): Path<i64>,
+    SessionUser(user_id): SessionUser,
 ) -> Result<()> {
-    // FIXME: add auth
     // FIXME: refine logic of categories that can't be deleted
 
     let num_deleted = query!(
@@ -139,8 +142,9 @@ pub async fn delete_category(
         delete from categories where id = ?
           and exists (
             select * from deletable_categories where deletable_categories.id = id
-          )",
-        category_id
+          ) and user_id = ?",
+        category_id,
+        user_id,
     )
     .execute(&pool)
     .await
@@ -158,6 +162,7 @@ pub async fn delete_category(
 mod test {
     use crate::{
         api_data::{CategoryCreateRequest, CategoryUpdateRequest},
+        auth::SessionUser,
         test_utils::*,
     };
     use axum::{extract::Path, Extension, Json};
@@ -175,9 +180,10 @@ mod test {
         }
         add_test_category(&pool, user).await;
 
-        let Json(Categories { categories }) = super::list_categories(Extension(pool.clone()))
-            .await
-            .expect("successful response with list of categories");
+        let Json(Categories { categories }) =
+            super::list_categories(Extension(pool.clone()), SessionUser(user))
+                .await
+                .expect("successful response with list of categories");
 
         assert_eq!(categories.len(), 2);
         let long_category = categories
@@ -197,24 +203,29 @@ mod test {
     #[tokio::test]
     async fn test_list_categories_empty() {
         let pool = test_database_pool().await;
-        add_test_user(&pool, "user").await;
-        let Json(Categories { categories }) = super::list_categories(Extension(pool.clone()))
-            .await
-            .expect("successful response with list of categories");
+        let user = add_test_user(&pool, "user").await;
+        let Json(Categories { categories }) =
+            super::list_categories(Extension(pool.clone()), SessionUser(user))
+                .await
+                .expect("successful response with list of categories");
         assert!(categories.is_empty());
     }
 
     #[tokio::test]
     async fn test_create_category_basic() {
         let pool = test_database_pool().await;
-        add_test_user(&pool, "user").await;
+        let user = add_test_user(&pool, "user").await;
 
         let create_category = CategoryCreateRequest {
             name: Some("test".to_owned()),
         };
-        let Json(category) = super::create_category(Extension(pool.clone()), Json(create_category))
-            .await
-            .expect("successful response");
+        let Json(category) = super::create_category(
+            Extension(pool.clone()),
+            SessionUser(user),
+            Json(create_category),
+        )
+        .await
+        .expect("successful response");
         assert_eq!(category.name, Some("test".to_owned()));
         assert!(category.id > 0);
     }
@@ -222,12 +233,16 @@ mod test {
     #[tokio::test]
     async fn test_create_category_no_name() {
         let pool = test_database_pool().await;
-        add_test_user(&pool, "user").await;
+        let user = add_test_user(&pool, "user").await;
 
         let create_category = CategoryCreateRequest { name: None };
-        let Json(category) = super::create_category(Extension(pool.clone()), Json(create_category))
-            .await
-            .expect("successful response");
+        let Json(category) = super::create_category(
+            Extension(pool.clone()),
+            SessionUser(user),
+            Json(create_category),
+        )
+        .await
+        .expect("successful response");
         assert_eq!(category.name, None);
         assert!(category.id > 0);
     }
@@ -242,6 +257,7 @@ mod test {
         let Json(category) = super::update_category(
             Extension(pool.clone()),
             Path(category_id),
+            SessionUser(user_id),
             Json(CategoryUpdateRequest {
                 name: Some("foo".to_owned()),
             }),
@@ -259,9 +275,13 @@ mod test {
         let user_id = add_test_user(&pool, "user").await;
         let category_id = add_test_category(&pool, user_id).await;
 
-        super::delete_category(Extension(pool.clone()), Path(category_id))
-            .await
-            .expect("successful response");
+        super::delete_category(
+            Extension(pool.clone()),
+            Path(category_id),
+            SessionUser(user_id),
+        )
+        .await
+        .expect("successful response");
 
         let has_category =
             query_scalar!("select count(*) from categories where id = ?", category_id)
@@ -274,7 +294,8 @@ mod test {
     #[tokio::test]
     async fn test_delete_category_not_found() {
         let pool = test_database_pool().await;
-        super::delete_category(Extension(pool.clone()), Path(1))
+        let user_id = add_test_user(&pool, "user").await;
+        super::delete_category(Extension(pool.clone()), Path(1), SessionUser(user_id))
             .await
             .unwrap_err();
     }
