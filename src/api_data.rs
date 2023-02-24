@@ -24,7 +24,7 @@ pub struct Categories {
 }
 
 #[derive(Deserialize)]
-pub struct CreateWord {
+pub struct WordCreateRequest {
     pub word: String,
 }
 

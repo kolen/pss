@@ -1,10 +1,12 @@
-use crate::api_data::{Word, Words};
+use crate::api_data::{Word, WordCreateRequest, Words};
 use crate::auth::SessionUser;
 use crate::controller::utils::InternalServerErrorResultExt;
 use axum::extract::Path;
+use axum::http::StatusCode;
 use axum::response::Result;
 use axum::{Extension, Json};
-use sqlx::{query, query_as, SqlitePool};
+use sqlx::types::time::OffsetDateTime;
+use sqlx::{query, query_as, query_scalar, SqlitePool};
 
 pub async fn list_words(
     Extension(pool): Extension<SqlitePool>,
@@ -26,11 +28,36 @@ pub async fn list_words(
     Ok(Json(Words { words }))
 }
 
-pub async fn create_word(Path(category_id): Path<u64>) -> Result<Json<Word>> {
-    Ok(Json(Word {
-        id: 0,
-        word: "foo".to_string(),
-    }))
+pub async fn create_word(
+    Extension(pool): Extension<SqlitePool>,
+    Path(category_id): Path<i64>,
+    SessionUser(user_id): SessionUser,
+    Json(word_create): Json<WordCreateRequest>,
+) -> Result<Json<Word>> {
+    if let Some(_) = query_scalar!("select id from categories where user_id = ?", user_id)
+        .fetch_optional(&pool)
+        .await
+        .into_500()?
+    {
+        let current_time = OffsetDateTime::now_utc();
+        let word_id = query!(
+            "insert into words (category_id, word, created_at, updated_at) values (?, ?, ?, ?)",
+            category_id,
+            word_create.word,
+            current_time,
+            current_time
+        )
+        .execute(&pool)
+        .await
+        .into_500()?
+        .last_insert_rowid();
+        Ok(Json(Word {
+            id: word_id,
+            word: word_create.word.to_owned(),
+        }))
+    } else {
+        Err((StatusCode::NOT_FOUND, "Category not found").into())
+    }
 }
 
 pub async fn delete_word(Path(_category_id): Path<u64>, Path(word_id): Path<u64>) -> Result<()> {
@@ -41,7 +68,7 @@ pub async fn delete_word(Path(_category_id): Path<u64>, Path(word_id): Path<u64>
 mod test {
     use axum::{extract::Path, Extension, Json};
 
-    use crate::{auth::SessionUser, test_utils::*};
+    use crate::{api_data::WordCreateRequest, auth::SessionUser, test_utils::*};
 
     #[tokio::test]
     async fn test_list_words_basic() {
@@ -58,5 +85,26 @@ mod test {
 
         assert_eq!(words.words.len(), 5);
         assert!(words.words.first().unwrap().id > 0);
+    }
+
+    #[tokio::test]
+    async fn test_create_word_basic() {
+        let pool = test_database_pool().await;
+        let user = add_test_user(&pool, "user").await;
+        let category_id = add_test_category(&pool, user).await;
+
+        let Json(word) = super::create_word(
+            Extension(pool),
+            Path(category_id),
+            SessionUser(user),
+            Json(WordCreateRequest {
+                word: "foo".to_owned(),
+            }),
+        )
+        .await
+        .expect("successful response");
+
+        assert!(word.id > 0);
+        assert_eq!("foo", word.word);
     }
 }
