@@ -31,6 +31,10 @@ pub struct CreateWord {
 #[derive(Serialize)]
 pub struct Word {
     pub id: i64,
-    pub category_id: i64,
     pub word: String,
+}
+
+#[derive(Serialize)]
+pub struct Words {
+    pub words: Vec<Word>,
 }
