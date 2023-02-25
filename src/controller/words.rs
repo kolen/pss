@@ -173,4 +173,23 @@ mod test {
         .await
         .expect("successful response");
     }
+
+    #[tokio::test]
+    async fn test_delete_word_another_user() {
+        let pool = test_database_pool().await;
+        let user1 = add_test_user(&pool, "user1").await;
+        let user2 = add_test_user(&pool, "user2").await;
+        let category = add_test_category(&pool, user1).await;
+        let word = add_test_word(&pool, category).await;
+
+        super::delete_word(
+            Extension(pool),
+            Path(category),
+            Path(word),
+            SessionUser(user2),
+        )
+        .await
+        .expect_err("unsuccessful response");
+        // TODO: check response code somehow
+    }
 }
