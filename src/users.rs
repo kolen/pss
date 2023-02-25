@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use argon2::{Argon2, PasswordHash};
 use base64::Engine;
 use password_hash::SaltString;
