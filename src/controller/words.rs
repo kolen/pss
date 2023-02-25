@@ -138,6 +138,26 @@ mod test {
     }
 
     #[tokio::test]
+    async fn test_create_word_other_users_category() {
+        let pool = test_database_pool().await;
+        let user1 = add_test_user(&pool, "user").await;
+        let user2 = add_test_user(&pool, "user").await;
+        let category = add_test_category(&pool, user1).await;
+
+        super::create_word(
+            Extension(pool),
+            Path(category),
+            SessionUser(user2),
+            Json(WordCreateRequest {
+                word: "foo".to_owned(),
+            }),
+        )
+        .await
+        .expect_err("unsuccessful response");
+        // TODO: check response code somehow
+    }
+
+    #[tokio::test]
     async fn test_delete_word_basic() {
         let pool = test_database_pool().await;
         let user = add_test_user(&pool, "user").await;

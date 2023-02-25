@@ -28,7 +28,7 @@ pub struct WordCreateRequest {
     pub word: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct Word {
     pub id: i64,
     pub word: String,
