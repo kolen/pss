@@ -60,8 +60,37 @@ pub async fn create_word(
     }
 }
 
-pub async fn delete_word(Path(_category_id): Path<u64>, Path(word_id): Path<u64>) -> Result<()> {
-    Ok(())
+pub async fn delete_word(
+    Extension(pool): Extension<SqlitePool>,
+    Path(category_id): Path<i64>,
+    Path(word_id): Path<i64>,
+    SessionUser(user_id): SessionUser,
+) -> Result<()> {
+    let affected_rows = query!(
+        "with deletable_words as (
+          select words.id from words
+          join categories on categories.id = words.category_id
+          where categories.user_id = ?
+        )
+        delete from words where id = ?
+          and exists (select * from deletable_words where deletable_words.id = id)
+          and category_id = ?",
+        user_id,
+        word_id,
+        category_id
+    )
+    .execute(&pool)
+    .await
+    .into_500()?
+    .rows_affected();
+
+    if affected_rows == 1 {
+        Ok(())
+    } else if affected_rows == 0 {
+        Err((StatusCode::NOT_FOUND, "Not found").into())
+    } else {
+        panic!("More than one word deleted, shouldn't happen");
+    }
 }
 
 #[cfg(test)]
@@ -106,5 +135,22 @@ mod test {
 
         assert!(word.id > 0);
         assert_eq!("foo", word.word);
+    }
+
+    #[tokio::test]
+    async fn test_delete_word_basic() {
+        let pool = test_database_pool().await;
+        let user = add_test_user(&pool, "user").await;
+        let category = add_test_category(&pool, user).await;
+        let word = add_test_word(&pool, category).await;
+
+        super::delete_word(
+            Extension(pool),
+            Path(category),
+            Path(word),
+            SessionUser(user),
+        )
+        .await
+        .expect("successful response");
     }
 }
