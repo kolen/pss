@@ -103,12 +103,12 @@ mod test {
     async fn test_list_words_basic() {
         let pool = test_database_pool().await;
         let user = add_test_user(&pool, "user").await;
-        let category_id = add_test_category(&pool, user).await;
+        let category = add_test_category(&pool, user).await;
         for _ in 0..5 {
-            add_test_word(&pool, category_id).await;
+            add_test_word(&pool, category).await;
         }
 
-        let Json(words) = super::list_words(Extension(pool), Path(category_id), SessionUser(user))
+        let Json(words) = super::list_words(Extension(pool), Path(category), SessionUser(user))
             .await
             .expect("successful response");
 
@@ -120,11 +120,11 @@ mod test {
     async fn test_create_word_basic() {
         let pool = test_database_pool().await;
         let user = add_test_user(&pool, "user").await;
-        let category_id = add_test_category(&pool, user).await;
+        let category = add_test_category(&pool, user).await;
 
         let Json(word) = super::create_word(
             Extension(pool),
-            Path(category_id),
+            Path(category),
             SessionUser(user),
             Json(WordCreateRequest {
                 word: "foo".to_owned(),
