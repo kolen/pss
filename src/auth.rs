@@ -56,6 +56,9 @@ where
 }
 
 pub fn session_cookie(secret: String) -> CookieJar {
-    let cookie = Cookie::build(COOKIE_NAME, secret).http_only(true).finish();
+    let cookie = Cookie::build(COOKIE_NAME, secret)
+        .http_only(true)
+        .path("/api") // TODO: make configurable or relative to login page
+        .finish();
     CookieJar::new().add(cookie)
 }
