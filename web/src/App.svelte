@@ -1,9 +1,18 @@
 <script lang="ts">
- import svelteLogo from './assets/svelte.svg'
- import Counter from './lib/Counter.svelte'
+import svelteLogo from './assets/svelte.svg';
+import Counter from './lib/Counter.svelte';
+import Categories from './Categories.svelte';
+import Words from './Words.svelte';
+import { writable } from 'svelte/store';
+
+let category_id;
 </script>
 
 <main>
+  <Categories bind:category_id />
+
+  <Words category_id="{category_id}" />
+
   <div>
     <a href="https://vitejs.dev" target="_blank" rel="noreferrer">
       <img src="/vite.svg" class="logo" alt="Vite Logo" />
