@@ -7,7 +7,7 @@ create table users (
 );
 
 create table categories (
-       id integer primary key autoincrement,
+       id integer not null primary key autoincrement,
        user_id integer not null,
        name text,
        created_at integer not null,
@@ -19,7 +19,7 @@ create table categories (
 create index idx_categories_on_user_id_created_at on categories (user_id, created_at);
 
 create table words (
-       id integer primary key autoincrement,
+       id integer not null primary key autoincrement,
        category_id integer not null,
        word text not null,
        created_at integer not null,
@@ -31,7 +31,7 @@ create table words (
 create index idx_words_on_category_id_created_at on words (category_id, created_at);
 
 create table games (
-       id integer primary key autoincrement,
+       id integer not null primary key autoincrement,
        user_words_id integer not null,
        user_composed_id integer not null,
        created_at integer not null,
@@ -43,7 +43,7 @@ create table games (
 create index idx_games_on_created_at on games (created_at);
 
 create table sessions (
-       id integer primary key autoincrement,
+       id integer not null primary key autoincrement,
        user_id integer not null,
        secret text not null,
        created_at integer not null,
