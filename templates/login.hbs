@@ -1,4 +1,7 @@
 {{#*inline "content"}}
+{{#if error}}
+<div>{{error}}</div>
+{{/if}}
 <form method="post">
   <input type="text" name="username" value="{{username}}" />
   <input type="password" name="password" />
