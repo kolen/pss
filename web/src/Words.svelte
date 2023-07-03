@@ -2,18 +2,20 @@
 import { listWords } from './lib/server_api';
 import Word from './Word.svelte';
 
-export let category_id;
+export let category;
 let words_response_p = null;
 $: {
-    if (category_id) {
-        words_response_p = listWords(category_id);
+    if (category) {
+        words_response_p = listWords(category.id);
     }
 }
 </script>
 
 <div class="words">
   {#if words_response_p}
-    <div>Category id: {category_id}</div>
+    <div class="category-toolbar">
+      <div>{category.name}</div>
+    </div>
 
     {#await words_response_p}
       <p>Loading</p>

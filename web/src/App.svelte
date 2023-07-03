@@ -5,14 +5,13 @@ import Categories from './Categories.svelte';
 import Words from './Words.svelte';
 import { writable } from 'svelte/store';
 
-let category_id;
+let category;
 </script>
 
 <main>
-  <Categories bind:category_id />
+  <Categories bind:category />
 
-  <Words category_id="{category_id}" />
-
+  <Words category="{category}" />
 </main>
 
 <div class="card">

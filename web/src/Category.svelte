@@ -5,9 +5,8 @@ export let category;
 export let selected = false;
 
 function handleClick() {
-    console.log('handleClick');
     if (!selected) {
-        dispatch('select', {category_id: category.id});
+        dispatch('select', {category: category});
     }
 }
 </script>

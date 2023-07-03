@@ -3,15 +3,15 @@ import { listCategories } from './lib/server_api';
 import Category from './Category.svelte';
 
 let categories_response_p = listCategories();
-export let category_id = undefined;
+export let category = undefined;
 categories_response_p.then((categories) => {
     if (categories.categories.length > 0) {
-        category_id = categories.categories[0].id;
+        category = categories.categories[0];
     }
 });
 
 function handleSelect(event) {
-    category_id = event.detail.category_id
+    category = event.detail.category
 }
 
 </script>
@@ -22,8 +22,8 @@ function handleSelect(event) {
     {#await categories_response_p}
       <p>Loading</p>
     {:then categories_response}
-      {#each categories_response.categories as category}
-        <Category on:select={handleSelect} category={category} selected={category.id == category_id} />
+      {#each categories_response.categories as i_category}
+        <Category on:select={handleSelect} category={i_category} selected={i_category == category} />
       {:else}
         <p>No categories</p>
       {/each}
