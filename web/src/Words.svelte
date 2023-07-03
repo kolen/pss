@@ -3,22 +3,25 @@ import { listWords } from './lib/server_api';
 import Word from './Word.svelte';
 
 export let category_id;
-let words_p = null;
+let words_response_p = null;
 $: {
     if (category_id) {
-        words_p = listWords(category_id);
+        words_response_p = listWords(category_id);
     }
 }
 </script>
 
 <div>
-  <div>Category id: {category_id}</div>
+  {#if words_response_p}
+    <div>Category id: {category_id}</div>
 
-  {#if words_p}
-    {#await words_p}
-    {:then words}
-      {#each words as word}
+    {#await words_response_p}
+      <p>Loading</p>
+    {:then words_response}
+      {#each words_response.words as word}
         <Word word={word} />
+      {:else}
+        <p>Empty category</p>
       {/each}
     {/await}
   {/if}
