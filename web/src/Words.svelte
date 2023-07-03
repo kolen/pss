@@ -11,7 +11,7 @@ $: {
 }
 </script>
 
-<div>
+<div class="words">
   {#if words_response_p}
     <div>Category id: {category_id}</div>
 
@@ -26,3 +26,9 @@ $: {
     {/await}
   {/if}
 </div>
+
+<style>
+.words {
+  flex-grow: 1;
+}
+</style>

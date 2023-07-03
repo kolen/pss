@@ -32,6 +32,10 @@ function handleSelect(event) {
 </nav>
 
 <style>
+nav {
+  flex-basis: 300px;
+}
+
 ul {
   list-style-type: none;
   padding: 0;

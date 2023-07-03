@@ -13,11 +13,15 @@ let category_id;
 
   <Words category_id="{category_id}" />
 
-  <div class="card">
-    <Counter />
-  </div>
-
 </main>
 
+<div class="card">
+  <Counter />
+</div>
+
 <style>
+main {
+  display: flex;
+  width: 100%;
+}
 </style>
