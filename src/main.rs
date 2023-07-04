@@ -7,12 +7,14 @@ use axum::{
 use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
 use rust_embed::RustEmbed;
+use schema::install_schema;
 use sqlx::{sqlite::SqlitePoolOptions, SqlitePool};
 
 mod api_data;
 mod auth;
 mod controller;
 mod schema;
+mod seeds;
 #[cfg(test)]
 mod test_utils;
 mod users;
@@ -77,12 +79,22 @@ enum Commands {
         #[command(subcommand)]
         command: UserCommands,
     },
+    Db {
+        #[command(subcommand)]
+        command: DbCommands,
+    },
 }
 
 #[derive(Subcommand)]
 enum UserCommands {
     Add { username: String, password: String },
     SetPassword { username: String, password: String },
+}
+
+#[derive(Subcommand)]
+enum DbCommands {
+    Init,
+    Seed,
 }
 
 async fn create_pool(database: &str) -> SqlitePool {
@@ -147,6 +159,31 @@ async fn main() -> ExitCode {
                     }
                     Err(e) => {
                         eprintln!("Error getting user when updating password: {}", e);
+                        ExitCode::FAILURE
+                    }
+                }
+            }
+        },
+        Commands::Db { command } => match command {
+            DbCommands::Init => {
+                let pool = create_pool(&cli.database).await;
+                match install_schema(&pool).await {
+                    Ok(()) => ExitCode::SUCCESS,
+                    Err(e) => {
+                        eprintln!("Error initializing database schema: {}", e);
+                        ExitCode::FAILURE
+                    }
+                }
+            }
+            DbCommands::Seed => {
+                let pool = create_pool(&cli.database).await;
+                match seeds::install(&pool).await {
+                    Ok(()) => {
+                        eprintln!("Created users user and user1 with password 123");
+                        ExitCode::SUCCESS
+                    }
+                    Err(e) => {
+                        eprintln!("Error installing database seeds: {:?}", e);
                         ExitCode::FAILURE
                     }
                 }
