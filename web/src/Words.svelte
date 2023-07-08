@@ -20,11 +20,13 @@ $: {
     {#await words_response_p}
       <p>Loading</p>
     {:then words_response}
-      {#each words_response.words as word}
-        <Word word={word} />
-      {:else}
-        <p>Empty category</p>
-      {/each}
+      <ul>
+        {#each words_response.words as word}
+          <Word word={word} />
+        {:else}
+          <p>Empty category</p>
+        {/each}
+      </ul>
     {/await}
   {/if}
 </div>

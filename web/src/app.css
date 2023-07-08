@@ -1,5 +1,5 @@
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: Open Sans, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
   font-size: 14px;
@@ -39,6 +39,7 @@ body {
   background: var(--ui-face-color);
   padding: 3px 15px;
   box-shadow: inset 0px 1px 0px var(--ui-highlight-color);
+  min-height: 25px;
 }
 
 h2.ui-header {
