@@ -13,8 +13,8 @@ $: {
 
 <div class="words">
   {#if words_response_p}
-    <div class="category-toolbar">
-      <div>{category.name}</div>
+    <div class="pane-header category-toolbar">
+      <span class="category-name">Категория: {category.name}</span>
     </div>
 
     {#await words_response_p}
@@ -32,5 +32,11 @@ $: {
 <style>
 .words {
   flex-grow: 1;
+  outline: 1px solid var(--ui-border-color);
+}
+
+.category-name {
+  font-weight: bold;
+  font-size: 80%;
 }
 </style>

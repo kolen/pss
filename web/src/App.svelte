@@ -21,6 +21,10 @@ let selected_category;
 <style>
 main {
   display: flex;
-  width: 100%;
+  max-width: 1024px;
+  margin: 0 auto;
+  gap: 1px;
+  outline: 1px solid var(--ui-border-color);
+  background: #fafafa;
 }
 </style>

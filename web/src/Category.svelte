@@ -16,7 +16,11 @@ function handleClick() {
 </li>
 
 <style>
+li {
+  padding: 4px 10px;
+}
+
 .selected {
-  font-weight: bold;
+  background: var(--ui-selection-color);
 }
 </style>

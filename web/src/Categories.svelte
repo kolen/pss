@@ -17,7 +17,9 @@ function handleSelect(event) {
 </script>
 
 <nav>
-  <h2>Категории</h2>
+  <hgroup class="pane-header">
+    <h2 class="ui-header">Категории</h2>
+  </hgroup>
   <ul>
     {#await categories_response_p}
       <p>Loading</p>
@@ -33,11 +35,14 @@ function handleSelect(event) {
 
 <style>
 nav {
-  flex-basis: 300px;
+  flex-basis: 250px;
+  max-width: 250px;
+  outline: 1px solid var(--ui-border-color);
 }
 
 ul {
   list-style-type: none;
   padding: 0;
+  margin: 0;
 }
 </style>
