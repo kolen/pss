@@ -2,4 +2,8 @@
 export let word;
 </script>
 
-<li>{word.word}</li>
+<tr>
+  <td><input type="checkbox" /></td>
+  <td>{word.word}</td>
+  <td>{word.created_at}</td>
+</tr>

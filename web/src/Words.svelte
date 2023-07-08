@@ -20,13 +20,20 @@ $: {
     {#await words_response_p}
       <p>Loading</p>
     {:then words_response}
-      <ul>
+      <table class="ui-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Слово</th>
+            <th>Добавлено</th>
+          </tr>
+        </thead>
         {#each words_response.words as word}
           <Word word={word} />
         {:else}
           <p>Empty category</p>
         {/each}
-      </ul>
+      </table>
     {/await}
   {/if}
 </div>
@@ -35,6 +42,22 @@ $: {
 .words {
   flex-grow: 1;
   outline: 1px solid var(--ui-border-color);
+}
+
+table {
+  width: 100%;
+}
+
+table th:nth-child(1) {
+  width: 25px;
+}
+
+table th:nth-child(2) {
+  width: auto;
+}
+
+table th:nth-child(3) {
+  width: 130px;
 }
 
 .category-name {

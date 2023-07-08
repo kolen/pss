@@ -13,7 +13,7 @@
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
 
-  --ui-shadow-color: #444444;
+  --ui-shadow-color: #6a6a6a;
   --ui-border-color: #808080;
   --ui-face-color: #cfcfcf;
   --ui-light-color: #e2e2e2;
@@ -40,6 +40,25 @@ body {
   padding: 3px 15px;
   box-shadow: inset 0px 1px 0px var(--ui-highlight-color);
   min-height: 25px;
+}
+
+.ui-table {
+    table-layout: fixed;
+    border-collapse: collapse;
+    background: #fff;
+}
+
+.ui-table td {
+    border: 1px solid #c1c1c1;
+    padding: 1px 10px;
+}
+
+.ui-table th {
+    background: var(--ui-face-color);
+    text-align: left;
+    box-shadow: inset -1px -1px var(--ui-shadow-color), inset 1px 2.5px var(--ui-highlight-color);
+    font-size: 13px;
+    padding: 0 12px;
 }
 
 h2.ui-header {
